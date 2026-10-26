@@ -4,14 +4,17 @@ import pandas as pd
 
 # Signos que no son etiquetas: los convertimos en una etiqueta o los eliminamos
 
+
+#Lo sig es descicion de diseño!!!!! Hoy por hoy se reemplazan signos que no usamos por lo de arriba,
+#Pero se podria directamente descartar las oraciones que tienen estos signos.
+#(VER)
+
 #Estos reemplazos son discutibles, pero seguro que hay que sacar cosas como (;) del texto de wikipedia
 REEMPLAZOS = [
     ("…", "."), ("...", "."),
     (";", ","), (":", ","),
     ("!", "."), ("¡", ""),
 ]
-
-
 def normalizar_signos(texto):
     """
     Normaliza los signos de puntuación en el texto cambiandolos por otros más simples o eliminándolos.
@@ -19,6 +22,9 @@ def normalizar_signos(texto):
     for viejo, nuevo in REEMPLAZOS:
         texto = texto.replace(viejo, nuevo)
     return texto
+#(VER ARRIBA)
+
+
 
 
 def seccionar_palabra(palabra):
