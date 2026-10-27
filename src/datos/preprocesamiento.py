@@ -82,79 +82,107 @@ def determinar_capitalizacion(palabra_original):
     return 0
 
 
+def separar_puntuacion_pegada(texto):
+    """
+    Inserta espacios si un signo de puntuación separa palabras pegadas.
+    No borramos puntuacion: lo usamos despues.
+
+    Conserva abreviaturas formadas por grupos cortos (EE.UU, U.S.A)
+    y números decimales (1.000) como unidades, tal como hacía el código.
+    """
+    # Protegemos los puntos internos de abreviaturas: "EE.UU" no es
+    # equivalente a "EE. UU". El punto final de "EE.UU." NO se protege.
+    abreviaturas = re.finditer(r"(?<![\w.])(?:[A-ZÁÉÍÓÚÜÑ]{1,3}\.)+[A-ZÁÉÍÓÚÜÑ]{1,3}(?![a-záéíóúüñ])", texto)
+    puntos_protegidos = {
+        i for abrev in abreviaturas
+        for i in range(abrev.start(), abrev.end())
+        if texto[i] == "."
+    }
+
+    # Los puntos entre letras pueden marcar el inicio de una oración,
+    # incluso sin mayúscula: "hola.mundo" -> "hola. mundo".
+    def separar_punto(match):
+        return "." if match.start() in puntos_protegidos else ". "
+
+    texto = re.sub(r"(?<=[^\W\d_])\.(?=[^\W\d_])", separar_punto, texto)
+    # "Hola.¿Cómo" -> "Hola. ¿Cómo".
+    texto = re.sub(r"(?<=[.,?])(?=¿)", " ", texto)
+    # "estás?Bien" -> "estás? Bien".
+    texto = re.sub(r"(?<=\?)(?=[^\W\d_])", " ", texto)
+    # "Hola,Franco" -> "Hola, Franco" (pero no divide "1,000").
+    texto = re.sub(r"(?<=,)(?=[^\W\d_])", " ", texto)
+    # "Hola¿cómo" -> "Hola ¿cómo".
+    texto = re.sub(r"(?<=[^\W\d_])(?=¿)", " ", texto)
+    return texto
+
+
 def procesar_parrafo_a_chunks(texto_crudo, tokenizer, chunk_size=32, id_inicio=1):
     """
-    Procesa un párrafo crudo, extrae las etiquetas reales a nivel token y
-    lo divide en chunks de tamaño fijo (chunk_size).
-    """
-    palabras = normalizar_signos(texto_crudo).split()  # CAMBIO: antes texto_crudo.split()
+    Genera etiquetas y divide el párrafo en chunks de hasta chunk_size
+    tokens, sin separar los sub-tokens de una misma palabra.
 
-    tokens_totales = []
-    token_ids_totales = []
-    p_init_totales = []
-    p_fin_totales = []
-    cap_totales = []
+    Una palabra de más de chunk_size sub-tokens queda sola en un chunk más largo.
+    """
+    if chunk_size < 1:
+        raise ValueError("chunk_size debe ser un entero positivo")
+
+    # El orden importa: normalizar, separar signos pegados y recién
+    # después dividir por espacios. Los signos se guardan como etiquetas.
+    texto = separar_puntuacion_pegada(normalizar_signos(texto_crudo))
+    palabras = texto.split()
+
+    # Cada elemento contiene TODOS los sub-tokens de una palabra.
+    # Así el empaquetado en chunks respeta sus límites.
+    grupos_palabras = []
 
     for palabra in palabras:
-        # CAMBIO: antes se miraba solo si empezaba con ¿ o terminaba con , . ?
         p_init, partes, p_fin = seccionar_palabra(palabra)
 
-        # cada parte (ej. 'Castilla' y 'La' de 'Castilla-La') se trata como una palabra:
-        # el '¿' va a la primera parte y la puntuación final a la última
         for k, parte in enumerate(partes):
-            #Asigno las puntuaicones solo si son la primer o ultima parte (esto capaz cambiar)
             p_init_parte = p_init if k == 0 else ""
             p_fin_parte = p_fin if k == len(partes) - 1 else ""
 
-            cap_val = determinar_capitalizacion(parte)  #usamos la función de anter para determinar la capitalización de la palabra
-            palabra_norm = parte.lower()
-
-            # Tokenizar versión normalizada con BERT
-            sub_tokens = tokenizer.tokenize(palabra_norm)
-            sub_token_ids = tokenizer.convert_tokens_to_ids(sub_tokens)
-
+            cap_val = determinar_capitalizacion(parte)
+            sub_tokens = tokenizer.tokenize(parte.lower())
             if not sub_tokens:
                 continue
 
-            # Asignar etiquetas a sub-tokens según reglas del TP (esto lo saque del ejemplo de lo que tiene que devolver el modelo que está en el enunciado)
+            sub_token_ids = tokenizer.convert_tokens_to_ids(sub_tokens)
+            grupo = []
             for i, (stok, st_id) in enumerate(zip(sub_tokens, sub_token_ids)):
-                #primero guardamos tokens y ids en nuestras listas que definimos arriba
-                tokens_totales.append(stok)
-                token_ids_totales.append(st_id)
+                grupo.append({
+                    'token_id': st_id,
+                    'token': stok,
+                    'punt_inicial': p_init_parte if i == 0 else "",
+                    'punt_final': p_fin_parte if i == len(sub_tokens) - 1 else "",
+                    'capitalización': cap_val,
+                })
+            grupos_palabras.append(grupo)
 
-                # Puntuación inicial al primer sub-token, final al último
-                p_init_totales.append(p_init_parte if i == 0 else "")
-                p_fin_totales.append(p_fin_parte if i == len(sub_tokens) - 1 else "")
-                cap_totales.append(cap_val) #capaz suena raro pero la capitalización hay que ponersela a cada subtoken
-
-    # Partir en bloques de tamaño 'chunk_size' (ej. 32 tokens)
     filas = []
     instancia_id = id_inicio
+    chunk_actual = []
 
-    for i in range(0, len(tokens_totales), chunk_size):
-        chunk_toks = tokens_totales[i : i + chunk_size]
+    def guardar_chunk(chunk, identificador):
+        for token in chunk:
+            filas.append({'instancia_id': identificador, **token})
 
-        if len(chunk_toks) < 5:  # Descartar remanentes insignificantes
-            continue
+    for grupo in grupos_palabras:
+        if chunk_actual and len(chunk_actual) + len(grupo) > chunk_size:
+            guardar_chunk(chunk_actual, instancia_id)
+            instancia_id += 1
+            chunk_actual = []
 
-        chunk_ids = token_ids_totales[i : i + chunk_size]
-        chunk_p_init = p_init_totales[i : i + chunk_size]
-        chunk_p_fin = p_fin_totales[i : i + chunk_size]
-        chunk_cap = cap_totales[i : i + chunk_size]
+        chunk_actual.extend(grupo)
 
-        #acá definimos para cada sub-token las 3 etiquetas de los 3 problema de clasificación que tenemos (es nada más juntar toda la info que recolectamos antes)
-        for t, tid, pi, pf, c in zip(chunk_toks, chunk_ids, chunk_p_init, chunk_p_fin, chunk_cap):
-            filas.append({
-                'instancia_id': instancia_id,
-                'token_id': tid,
-                'token': t,
-                'punt_inicial': pi,
-                'punt_final': pf,
-                'capitalización': c
-            })
+    # No descartamos chunks cortos: pueden contener puntuaciones importantes.
+    if chunk_actual:
+        guardar_chunk(chunk_actual, instancia_id)
         instancia_id += 1
 
-    return pd.DataFrame(filas), instancia_id
+    columnas = ['instancia_id', 'token_id', 'token',
+                'punt_inicial', 'punt_final', 'capitalización']
+    return pd.DataFrame(filas, columns=columnas), instancia_id
 
 
 def construir_dataset(textos, tokenizer, chunk_size=32):
