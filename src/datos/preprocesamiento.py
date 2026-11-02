@@ -1,6 +1,8 @@
 import re
-
+import numpy as np
+import torch
 import pandas as pd
+from tqdm.notebook import tqdm
 
 # Signos que no son etiquetas: los convertimos en una etiqueta o los eliminamos
 
@@ -199,3 +201,93 @@ def construir_dataset(textos, tokenizer, chunk_size=32):
             dataframes_chunks.append(df_chunk)
 
     return pd.concat(dataframes_chunks, ignore_index=True) #concatenamos todos los datasets por parrafo que disponemos.
+
+
+def construir_embeddings_por_palabra(df, embedding_fn):
+    """
+    Toma el DataFrame procesado y agrupa los sub-tokens por palabra,
+    calculando la media de sus embeddings mediante la función embedding_fn.
+    """
+    df_temp = df.copy()
+    df_temp['es_inicio_palabra'] = ~df_temp['token'].str.startswith('##')
+    df_temp['palabra_id'] = df_temp.groupby('instancia_id')['es_inicio_palabra'].cumsum()
+    
+    registros_palabras = []
+
+    # Agrupamos por chunk e ID de palabra
+    grupos = df_temp.groupby(['instancia_id', 'palabra_id'])
+
+    for (inst_id, p_id), grupo in tqdm(grupos, desc="Procesando embeddings de palabras"):
+        sub_tokens = grupo['token'].tolist()
+        
+        vectores_subtokens = []
+        for stok in sub_tokens:
+            # Usamos la función pasada como parámetro
+            vec = embedding_fn(stok)
+            if vec is not None:
+                if isinstance(vec, torch.Tensor):
+                    vec = vec.detach().cpu().numpy()
+                vectores_subtokens.append(vec)
+                
+        if not vectores_subtokens:
+            continue
+            
+        embedding_promedio = np.mean(vectores_subtokens, axis=0)
+        
+        registros_palabras.append({
+            'instancia_id': inst_id,
+            'palabra': "".join([t.replace('##', '') for t in sub_tokens]),
+            'embedding': embedding_promedio,
+            'punt_inicial': grupo.iloc[0]['punt_inicial'],
+            'punt_final': grupo.iloc[-1]['punt_final'],
+            'capitalización': grupo.iloc[0]['capitalización']
+        })
+
+    return pd.DataFrame(registros_palabras)
+
+
+def generar_matriz_features_rf(df_palabras, window_size=2):
+    """
+    Genera la matriz X e y para entrenar el RF concatenando la ventana de contexto
+    (palabras a la izquierda y derecha) y los vectores y para cada target.
+    """
+    X, y_init, y_fin, y_cap = [], [], [], []
+    dim_emb = len(df_palabras.iloc[0]['embedding'])
+    padding_vec = np.zeros(dim_emb)  # Vector de ceros para los bordes del chunk
+
+    # Iterar por cada chunk (instancia_id) por separado para no cruzar palabras de distintas oraciones
+    for _, chunk in df_palabras.groupby('instancia_id'):
+        embeddings_chunk = chunk['embedding'].tolist()
+        p_init_chunk = chunk['punt_inicial'].tolist()
+        p_fin_chunk = chunk['punt_final'].tolist()
+        cap_chunk = chunk['capitalización'].tolist()
+
+        n_palabras = len(embeddings_chunk)
+
+        for i in range(n_palabras):
+            vector_ventana = []
+            
+            # Palabras a la izquierda (vecinos anteriores)
+            for j in range(i - window_size, i):
+                if j >= 0:
+                    vector_ventana.append(embeddings_chunk[j])
+                else:
+                    vector_ventana.append(padding_vec)
+                    
+            # Palabra actual
+            vector_ventana.append(embeddings_chunk[i])
+            
+            # Palabras a la derecha (vecinos posteriores)
+            for j in range(i + 1, i + window_size + 1):
+                if j < n_palabras:
+                    vector_ventana.append(embeddings_chunk[j])
+                else:
+                    vector_ventana.append(padding_vec)
+                    
+            # Concatenamos todo en un único vector continuo para esta palabra
+            X.append(np.concatenate(vector_ventana))
+            y_init.append(p_init_chunk[i])
+            y_fin.append(p_fin_chunk[i])
+            y_cap.append(cap_chunk[i])
+
+    return np.array(X), np.array(y_init), np.array(y_fin), np.array(y_cap)
