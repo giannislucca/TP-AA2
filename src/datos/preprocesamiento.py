@@ -118,6 +118,19 @@ def separar_puntuacion_pegada(texto):
     return texto
 
 
+def pegar_puntuacion_suelta(texto):
+    """
+    Pega los signos que quedaron sueltos entre espacios a la palabra que
+    acompañan (ej. '¿ Vienes ?' -> '¿Vienes?'), algo raro en Wikipedia pero
+    común en subtítulos. Sin esto, seccionar_palabra recibe un '¿' o un '?'
+    como palabra propia, sin ninguna letra que le sirva de ancla, y no tiene
+    a qué pegarle la etiqueta: la pierde en silencio.
+    """
+    texto = re.sub(r'¿\s+', '¿', texto)          # '¿ Vienes' -> '¿Vienes'
+    texto = re.sub(r'\s+([?,.])', r'\1', texto)  # 'Vienes ?' -> 'Vienes?'
+    return texto
+
+
 def procesar_parrafo_a_chunks(texto_crudo, tokenizer, chunk_size=32, id_inicio=1):
     """
     Genera etiquetas y divide el párrafo en chunks de hasta chunk_size
@@ -128,9 +141,10 @@ def procesar_parrafo_a_chunks(texto_crudo, tokenizer, chunk_size=32, id_inicio=1
     if chunk_size < 1:
         raise ValueError("chunk_size debe ser un entero positivo")
 
-    # El orden importa: normalizar, separar signos pegados y recién
-    # después dividir por espacios. Los signos se guardan como etiquetas.
-    texto = separar_puntuacion_pegada(normalizar_signos(texto_crudo))
+    # El orden importa: normalizar, pegar signos sueltos, separar signos
+    # pegados y recién después dividir por espacios. Los signos se guardan
+    # como etiquetas.
+    texto = separar_puntuacion_pegada(pegar_puntuacion_suelta(normalizar_signos(texto_crudo)))
     palabras = texto.split()
 
     # Cada elemento contiene TODOS los sub-tokens de una palabra.
