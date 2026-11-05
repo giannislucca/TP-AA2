@@ -231,7 +231,7 @@ def construir_embeddings_por_palabra(df, embedding_fn):
     # Agrupamos por chunk e ID de palabra
     grupos = df_temp.groupby(['instancia_id', 'palabra_id'])
 
-    for (inst_id, p_id), grupo in tqdm(grupos, desc="Procesando embeddings de palabras"):
+    for (inst_id, p_id), grupo in tqdm(grupos, desc="Procesando embeddings de palabras"): #tqdm es para mostrar barra de progreso visual
         sub_tokens = grupo['token'].tolist()
         
         vectores_subtokens = []
@@ -259,19 +259,91 @@ def construir_embeddings_por_palabra(df, embedding_fn):
 
     return pd.DataFrame(registros_palabras)
 
+###Constructores de features a mano (QUEDA MEDIO FEO ACA, REPENSAR ESTRUCTURA)###
+VOCALES = set("aeiouáéíóúü")
+VOCALES_CON_TILDE = set("áéíóú")
 
-def generar_matriz_features_rf(df_palabras, window_size=2):
+# Pronombres/adverbios interrogativos: fuerte señal de punt_inicial='¿' en español
+INTERROGATIVOS = {
+    "qué", "quién", "quiénes", "cómo", "cuándo", "dónde",
+    "cuál", "cuáles", "cuánto", "cuánta", "cuántos", "cuántas",
+}
+# Nexos típicos antes de coma o punto
+NEXOS = {"y", "pero", "porque", "que", "entonces", "luego", "aunque", "además"}
+# Artículos y preposiciones más frecuentes: suelen ir sin puntuación
+STOPWORDS = {
+    "el", "la", "los", "las", "un", "una", "unos", "unas",
+    "de", "en", "a", "con", "por", "para", "sin", "sobre",
+}
+
+
+def _calcular_features_palabra(palabra):
+    """
+    Atributos "a mano" de una palabra (ya en minúsculas, sin puntuación),
+    sin usar embeddings.
+    """
+    letras = [c for c in palabra if c.isalpha()]
+    n_letras = len(letras)
+    n_vocales = sum(1 for c in letras if c in VOCALES)
+    n_tildes = sum(1 for c in letras if c in VOCALES_CON_TILDE)
+
+    return np.array([
+        len(palabra),
+        n_letras,
+        n_vocales,
+        n_letras - n_vocales,          # consonantes
+        n_tildes,
+        float(palabra in INTERROGATIVOS),
+        float(palabra in NEXOS),
+        float(palabra in STOPWORDS),
+        float(palabra.isdigit()),
+    ])
+
+
+def construir_features_manuales_por_palabra(df):
+    """
+    Análogo a construir_embeddings_por_palabra para el sub-ítem a.ii (sin
+    embeddings): agrupa sub-tokens en palabras igual que esa función, pero
+    en vez de promediar embeddings de BERT calcula _calcular_features_palabra.
+    """
+    df_temp = df.copy()
+    df_temp['es_inicio_palabra'] = ~df_temp['token'].str.startswith('##')
+    df_temp['palabra_id'] = df_temp.groupby('instancia_id')['es_inicio_palabra'].cumsum()
+
+    registros_palabras = []
+    grupos = df_temp.groupby(['instancia_id', 'palabra_id'])
+
+    for (inst_id, p_id), grupo in tqdm(grupos, desc="Procesando features manuales de palabras"):#tqdm es para mostrar barra de progreso visual
+        sub_tokens = grupo['token'].tolist()
+        palabra = "".join(t.replace('##', '') for t in sub_tokens)#rearmo la palabra original
+
+        registros_palabras.append({
+            'instancia_id': inst_id,
+            'palabra': palabra,
+            'features': _calcular_features_palabra(palabra),
+            'punt_inicial': grupo.iloc[0]['punt_inicial'],
+            'punt_final': grupo.iloc[-1]['punt_final'],
+            'capitalización': grupo.iloc[0]['capitalización']
+        })
+
+    return pd.DataFrame(registros_palabras)
+
+
+def generar_matriz_features_rf(df_palabras, window_size=2, columna_features='embedding'):
     """
     Genera la matriz X e y para entrenar el RF concatenando la ventana de contexto
     (palabras a la izquierda y derecha) y los vectores y para cada target.
+
+    columna_features: nombre de la columna de df_palabras con el vector por
+    palabra (embeddings o atributos a mano)
     """
     X, y_init, y_fin, y_cap = [], [], [], []
-    dim_emb = len(df_palabras.iloc[0]['embedding'])
+    dim_emb = len(df_palabras.iloc[0][columna_features])#Aca se cambio a columna de features generica
     padding_vec = np.zeros(dim_emb)  # Vector de ceros para los bordes del chunk
 
     # Iterar por cada chunk (instancia_id) por separado para no cruzar palabras de distintas oraciones
     for _, chunk in df_palabras.groupby('instancia_id'):
-        embeddings_chunk = chunk['embedding'].tolist()
+        embeddings_chunk = chunk[columna_features].tolist() #Aca se cambio a columna de features generica
         p_init_chunk = chunk['punt_inicial'].tolist()
         p_fin_chunk = chunk['punt_final'].tolist()
         cap_chunk = chunk['capitalización'].tolist()

@@ -35,24 +35,16 @@ La notebook hace `from src.datos... import ...`, así que **la carpeta `src/` ti
    La carpeta `__pycache__` no hace falta subirla.
 5. Correr la notebook de arriba hacia abajo.
 
-### Opción B: clonar el repo (y usar colab, si no, usar todo localmente y listo)
+### Opción B: Colab desde VS Code
 
-En una celda al principio de la notebook:
-
-```python
-!git clone https://github.com/giannislucca/TP-AA2.git
-%cd TP-AA2
-```
-
-Así queda todo `src/` actualizado sin subir archivos uno por uno. 
-
-Se abre en su VisualStudioCode o lo que sea, descargan la extension de google collab, y en los kernels de arriba a la derecha elijen colab, y la primera opción siempre.
-
-Cuando ya esta cargado el kernel, tocan click derecho en la carpeta de src y elijen `upload to colab`
+1. Abrir el repo local en VS Code.
+2. Instalar la extensión de Google Colab y conectar el kernel: arriba a la derecha, elegir kernel → Colab → la primera opción.
+3. Con el kernel ya conectado, clic derecho sobre la carpeta `src/` en el explorador de archivos → **Upload to Colab**.
+4. Correr la notebook de arriba hacia abajo.
 
 ### Cosas a tener en cuenta
 
-- **Los archivos de Colab se borran al reiniciar o desconectar el entorno.** Después de eso hay que volver a subir `src/` (o volver a clonar).
+- **Los archivos de Colab se borran al reiniciar o desconectar el entorno.** Después de eso hay que volver a subir `src/` (Opción A o B).
 - Si se modifica un archivo de `src/` (desde el editor de Colab o subiendo una versión nueva), no hace falta reiniciar: la notebook tiene `%autoreload 2`, que recarga los módulos al ejecutar la próxima celda.
 - Los cambios hechos en Colab sobre `src/` **no vuelven al repo** solos: hay que descargarlos y commitearlos.
 - Dependencias: `transformers` y `pandas` vienen instalados en Colab. Si falla `from datasets import load_dataset`, correr `!pip install -q datasets` y reiniciar el entorno.
