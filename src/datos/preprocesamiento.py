@@ -131,24 +131,16 @@ def pegar_puntuacion_suelta(texto):
     return texto
 
 
-def procesar_parrafo_a_chunks(texto_crudo, tokenizer, chunk_size=32, id_inicio=1):
+def procesar_parrafo_a_chunks(texto_crudo, tokenizer, embedding_fn, chunk_size=32, id_inicio=1):
     """
-    Genera etiquetas y divide el párrafo en chunks de hasta chunk_size
-    tokens, sin separar los sub-tokens de una misma palabra.
-
-    Una palabra de más de chunk_size sub-tokens queda sola en un chunk más largo.
+    Genera etiquetas, calcula embeddings por sub-token y divide el párrafo en chunks.
     """
     if chunk_size < 1:
         raise ValueError("chunk_size debe ser un entero positivo")
 
-    # El orden importa: normalizar, pegar signos sueltos, separar signos
-    # pegados y recién después dividir por espacios. Los signos se guardan
-    # como etiquetas.
     texto = separar_puntuacion_pegada(pegar_puntuacion_suelta(normalizar_signos(texto_crudo)))
     palabras = texto.split()
 
-    # Cada elemento contiene TODOS los sub-tokens de una palabra.
-    # Así el empaquetado en chunks respeta sus límites.
     grupos_palabras = []
 
     for palabra in palabras:
@@ -166,9 +158,21 @@ def procesar_parrafo_a_chunks(texto_crudo, tokenizer, chunk_size=32, id_inicio=1
             sub_token_ids = tokenizer.convert_tokens_to_ids(sub_tokens)
             grupo = []
             for i, (stok, st_id) in enumerate(zip(sub_tokens, sub_token_ids)):
+                
+                # ----------------------------------------------------------------------------
+                # Agrego en esta función el cálculo de embeddings, así no lo repetimos después
+                # ----------------------------------------------------------------------------
+                vec = embedding_fn(stok)
+                if vec is not None and isinstance(vec, torch.Tensor):
+                    vec = vec.detach().cpu().numpy()
+                elif vec is None:
+                    # En caso de token fuera de vocabulario, padding con ceros de dim 768
+                    vec = np.zeros(768)
+
                 grupo.append({
                     'token_id': st_id,
                     'token': stok,
+                    'embedding': vec,  # <-- Columna de embedding por token
                     'punt_inicial': p_init_parte if i == 0 else "",
                     'punt_final': p_fin_parte if i == len(sub_tokens) - 1 else "",
                     'capitalización': cap_val,
@@ -191,58 +195,51 @@ def procesar_parrafo_a_chunks(texto_crudo, tokenizer, chunk_size=32, id_inicio=1
 
         chunk_actual.extend(grupo)
 
-    # No descartamos chunks cortos: pueden contener puntuaciones importantes.
     if chunk_actual:
         guardar_chunk(chunk_actual, instancia_id)
         instancia_id += 1
 
-    columnas = ['instancia_id', 'token_id', 'token',
+    columnas = ['instancia_id', 'token_id', 'token', 'embedding',
                 'punt_inicial', 'punt_final', 'capitalización']
     return pd.DataFrame(filas, columns=columnas), instancia_id
 
-
-def construir_dataset(textos, tokenizer, chunk_size=32):
+def construir_dataset(textos, tokenizer, embedding_fn, chunk_size=32):
     """
-    Aplica procesar_parrafo_a_chunks a cada texto y concatena todo en el
-    dataset tabular final con la estructura exigida en el TP.
+    Aplica procesar_parrafo_a_chunks a cada texto pasando la función de embedding.
     """
     dataframes_chunks = []
     current_id = 1
 
-    for parrafo in textos:
-        df_chunk, current_id = procesar_parrafo_a_chunks(parrafo, tokenizer, chunk_size=chunk_size, id_inicio=current_id)
-        if not df_chunk.empty:
-            dataframes_chunks.append(df_chunk)
+    with torch.no_grad():  # Desactiva gradientes para no agotar la RAM de Colab
+        for parrafo in tqdm(textos, desc="Construyendo dataset y embeddings por token"):
+            df_chunk, current_id = procesar_parrafo_a_chunks(
+                parrafo, 
+                tokenizer, 
+                embedding_fn=embedding_fn, 
+                chunk_size=chunk_size, 
+                id_inicio=current_id
+            )
+            if not df_chunk.empty:
+                dataframes_chunks.append(df_chunk)
 
-    return pd.concat(dataframes_chunks, ignore_index=True) #concatenamos todos los datasets por parrafo que disponemos.
+    return pd.concat(dataframes_chunks, ignore_index=True)
 
-
-def construir_embeddings_por_palabra(df, embedding_fn):
+def construir_embeddings_por_palabra(df):
     """
-    Toma el DataFrame procesado y agrupa los sub-tokens por palabra,
-    calculando la media de sus embeddings mediante la función embedding_fn.
+    Toma el DataFrame que ya contiene la columna 'embedding' en cada token,
+    agrupa los sub-tokens por palabra y calcula la media de sus vectores.
     """
     df_temp = df.copy()
     df_temp['es_inicio_palabra'] = ~df_temp['token'].str.startswith('##')
     df_temp['palabra_id'] = df_temp.groupby('instancia_id')['es_inicio_palabra'].cumsum()
     
     registros_palabras = []
-
-    # Agrupamos por chunk e ID de palabra
     grupos = df_temp.groupby(['instancia_id', 'palabra_id'])
 
-    for (inst_id, p_id), grupo in tqdm(grupos, desc="Procesando embeddings de palabras"): #tqdm es para mostrar barra de progreso visual
+    for (inst_id, p_id), grupo in tqdm(grupos, desc="Promediando embeddings por palabra"):
         sub_tokens = grupo['token'].tolist()
+        vectores_subtokens = grupo['embedding'].tolist()  # Toma los vectores existentes
         
-        vectores_subtokens = []
-        for stok in sub_tokens:
-            # Usamos la función pasada como parámetro
-            vec = embedding_fn(stok)
-            if vec is not None:
-                if isinstance(vec, torch.Tensor):
-                    vec = vec.detach().cpu().numpy()
-                vectores_subtokens.append(vec)
-                
         if not vectores_subtokens:
             continue
             
