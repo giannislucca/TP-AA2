@@ -203,26 +203,44 @@ def procesar_parrafo_a_chunks(texto_crudo, tokenizer, embedding_fn, chunk_size=3
                 'punt_inicial', 'punt_final', 'capitalización']
     return pd.DataFrame(filas, columns=columnas), instancia_id
 
-def construir_dataset(textos, tokenizer, embedding_fn, chunk_size=32):
-    """
-    Aplica procesar_parrafo_a_chunks a cada texto pasando la función de embedding.
-    """
+
+def construir_dataset(textos, tokenizer, embedding_fn, chunk_size=32,
+                      exigir_origen=False):
+
     dataframes_chunks = []
     current_id = 1
 
-    with torch.no_grad():  # Desactiva gradientes para no agotar la RAM de Colab
-        for parrafo in tqdm(textos, desc="Construyendo dataset y embeddings por token"):
+    with torch.no_grad():
+        for indice_texto, elemento in enumerate(
+            tqdm(textos, desc="Construyendo dataset y embeddings por token")
+        ):
+
+            # Obtener el texto y su origen
+            if isinstance(elemento, dict):
+                texto = elemento["texto"]
+                origen_id = elemento["origen_id"]
+            else:
+                if exigir_origen:
+                    raise ValueError("Falta origen_id en los textos")
+                texto = elemento
+                origen_id = f"sin_origen:{indice_texto}"
+
+            # Preprocesamiento original
             df_chunk, current_id = procesar_parrafo_a_chunks(
-                parrafo, 
-                tokenizer, 
-                embedding_fn=embedding_fn, 
-                chunk_size=chunk_size, 
+                texto,
+                tokenizer,
+                embedding_fn=embedding_fn,
+                chunk_size=chunk_size,
                 id_inicio=current_id
             )
+
             if not df_chunk.empty:
+                df_chunk["origen_id"] = origen_id
+                df_chunk["texto_id"] = indice_texto
                 dataframes_chunks.append(df_chunk)
 
     return pd.concat(dataframes_chunks, ignore_index=True)
+
 
 def construir_embeddings_por_palabra(df):
     """
@@ -246,6 +264,8 @@ def construir_embeddings_por_palabra(df):
         embedding_promedio = np.mean(vectores_subtokens, axis=0)
         
         registros_palabras.append({
+            'origen_id': grupo.iloc[0]['origen_id'],
+            'texto_id': grupo.iloc[0]['texto_id'],
             'instancia_id': inst_id,
             'palabra': "".join([t.replace('##', '') for t in sub_tokens]),
             'embedding': embedding_promedio,
@@ -315,6 +335,8 @@ def construir_features_manuales_por_palabra(df):
         palabra = "".join(t.replace('##', '') for t in sub_tokens)#rearmo la palabra original
 
         registros_palabras.append({
+            'origen_id': grupo.iloc[0]['origen_id'],
+            'texto_id': grupo.iloc[0]['texto_id'],
             'instancia_id': inst_id,
             'palabra': palabra,
             'features': _calcular_features_palabra(palabra),

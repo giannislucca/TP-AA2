@@ -20,7 +20,7 @@ def extraer_preguntas(texto, min_palabras=4):
     return encontradas
 
 
-def _acumular_estandar_y_preguntas(items, extraer_texto, n_estandar, n_preguntas, min_len=0, min_palabras_pregunta=4):
+def _acumular_estandar_y_preguntas(items, extraer_texto, n_estandar, n_preguntas,min_len=0, min_palabras_pregunta=4, incluir_origen=False, prefijo_origen="fuente"):
     """
     Arma dos listas de texto a partir de un dataset en streaming, sin saber
     nada de su esquema (Wikipedia, OpenSubtitles, o lo que venga después):
@@ -45,24 +45,45 @@ def _acumular_estandar_y_preguntas(items, extraer_texto, n_estandar, n_preguntas
     textos_estandar = []
     textos_preguntas = []
 
-    for item in items:
+    
+
+    for indice_fila, item in enumerate(items):
         texto = extraer_texto(item)
 
+        origen_id = f"{prefijo_origen}:{indice_fila}"
+
+        def empaquetar(fragmento):
+            if incluir_origen:
+                return {
+                    "texto": fragmento,
+                    "origen_id": origen_id
+                }
+            return fragmento
+
         if len(textos_estandar) < n_estandar and len(texto) > min_len:
-            textos_estandar.append(texto)
+            textos_estandar.append(empaquetar(texto))
+
         elif len(textos_preguntas) < n_preguntas:
-            for pregunta in extraer_preguntas(texto, min_palabras=min_palabras_pregunta):
-                textos_preguntas.append(pregunta)
+            for pregunta in extraer_preguntas(
+                texto, min_palabras=min_palabras_pregunta
+            ):
+                textos_preguntas.append(empaquetar(pregunta))
+
                 if len(textos_preguntas) >= n_preguntas:
                     break
 
-        if len(textos_estandar) >= n_estandar and len(textos_preguntas) >= n_preguntas:
+        # Detenerse cuando ya tenemos suficientes ejemplos
+        if (
+            len(textos_estandar) >= n_estandar
+            and len(textos_preguntas) >= n_preguntas
+        ):
             break
 
     return textos_estandar, textos_preguntas
 
 
-def cargar_textos_wikipedia(n_estandar=100, n_preguntas=300, min_len=100, aleatorio=False, seed=101, version="20231101.es"):
+
+def cargar_textos_wikipedia(n_estandar=100, n_preguntas=300, min_len=100, aleatorio=False, seed=101, version="20231101.es", incluir_origen = False):
     """
     Descarga textos de Wikipedia en español en streaming.
     Devuelve:
@@ -77,14 +98,13 @@ def cargar_textos_wikipedia(n_estandar=100, n_preguntas=300, min_len=100, aleato
         dataset = dataset.shuffle(seed=seed, buffer_size=10_000)
 
     textos_estandar, textos_preguntas = _acumular_estandar_y_preguntas(
-        dataset, lambda item: item['text'].strip(), n_estandar, n_preguntas, min_len=min_len
-    )
-
+        dataset, lambda item: item['text'].strip(), n_estandar, n_preguntas, min_len=min_len, incluir_origen=incluir_origen, prefijo_origen="wikipedia")
+    
     print(f"✅ Descarga finalizada: {len(textos_estandar)} textos estándar y {len(textos_preguntas)} oraciones de preguntas obtenidas.")
     return textos_estandar, textos_preguntas
 
 
-def cargar_opensubtitles(n_estandar=0, n_preguntas=300, min_len=20, min_palabras_pregunta=4, seed=101, idioma="es"):
+def cargar_opensubtitles(n_estandar=0, n_preguntas=300, min_len=20, min_palabras_pregunta=4, seed=101, idioma="es", incluir_origen =False):
     """
     Descarga líneas de diálogo en español del corpus de subtítulos
     homersimpson/opensubtitles_es (alineado es-ca, en Parquet; no ejecuta
@@ -104,8 +124,8 @@ def cargar_opensubtitles(n_estandar=0, n_preguntas=300, min_len=20, min_palabras
 
     textos_estandar, textos_preguntas = _acumular_estandar_y_preguntas(
         dataset, lambda item: item['translation'][idioma].strip(), n_estandar, n_preguntas,
-        min_len=min_len, min_palabras_pregunta=min_palabras_pregunta
+        min_len=min_len, min_palabras_pregunta=min_palabras_pregunta, incluir_origen=incluir_origen,
+    prefijo_origen="opensubtitles"
     )
-
     print(f"✅ Descarga finalizada: {len(textos_estandar)} líneas estándar y {len(textos_preguntas)} líneas con pregunta obtenidas.")
     return textos_estandar, textos_preguntas
