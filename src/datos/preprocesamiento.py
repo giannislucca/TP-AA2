@@ -396,3 +396,80 @@ def generar_matriz_features_rf(df_palabras, window_size=2, columna_features='emb
             y_cap.append(cap_chunk[i])
 
     return np.array(X), np.array(y_init), np.array(y_fin), np.array(y_cap)
+
+
+def preparar_secuencias_rnn(df):
+    """
+    Organiza el dataset etiquetado por token para una RNN many-to-many.
+
+    Una fila del DataFrame representa un subtoken. Agrupa por instancia_id,
+    conserva el orden original de los subtokens y agrega padding al final.
+
+    Devuelve un diccionario con:
+      X            (B, T, D) float32: embeddings estáticos de BERT
+      y_init       (B, T) long: puntuación inicial (""=0, "¿"=1)
+      y_fin        (B, T) long: puntuación final (""=0, ","=1, "."=2, "?"=3)
+      y_cap        (B, T) long: capitalización (0, 1, 2, 3)
+      mascara      (B, T) bool: True en tokens reales, False en padding
+      longitudes   (B,) long: cantidad de tokens reales por secuencia
+      instancia_ids: lista de IDs en el mismo orden que las secuencias
+
+    Las etiquetas de padding se marcan con -100, compatible con
+    torch.nn.CrossEntropyLoss(ignore_index=-100).
+    """
+    columnas = ["instancia_id", "embedding", "punt_inicial",
+                "punt_final", "capitalización"]
+
+    # Convierte las etiquetas a números
+    mapa_init = {"": 0, "¿": 1}
+    mapa_fin = {"": 0, ",": 1, ".": 2, "?": 3}
+
+    # Agrupa los tokens en secuencias
+    grupos = list(df.groupby("instancia_id", sort=False))
+    B = len(grupos)
+    T = max(len(grupo) for _, grupo in grupos)
+    D = len(np.asarray(df.iloc[0]["embedding"]))
+
+    # Crea los tensores vacíos
+    X = np.zeros((B, T, D), dtype=np.float32)
+    y_init = np.full((B, T), -100, dtype=np.int64)
+    y_fin = np.full((B, T), -100, dtype=np.int64)
+    y_cap = np.full((B, T), -100, dtype=np.int64)
+    mascara = np.zeros((B, T), dtype=bool)
+    longitudes = np.zeros(B, dtype=np.int64)
+    instancia_ids = []
+
+    # Recorre cada secuencia y recupera sus embeddings
+    for i, (inst_id, grupo) in enumerate(grupos):
+        longitud = len(grupo)
+        vectores = np.stack(grupo["embedding"].to_list()).astype(np.float32)
+        if vectores.shape != (longitud, D) or not np.isfinite(vectores).all():
+            raise ValueError(f"Embeddings inválidos en instancia_id={inst_id}")
+
+        # Valida y transforma las etiquetas
+        etiquetas_init = grupo["punt_inicial"].map(mapa_init)
+        etiquetas_fin = grupo["punt_final"].map(mapa_fin)
+        etiquetas_cap = pd.to_numeric(grupo["capitalización"], errors="coerce")
+        if (etiquetas_init.isna().any() or etiquetas_fin.isna().any()
+                or not etiquetas_cap.isin([0, 1, 2, 3]).all()):
+            raise ValueError(f"Etiquetas inválidas en instancia_id={inst_id}")
+
+        # Llena los tensores
+        X[i, :longitud] = vectores
+        y_init[i, :longitud] = etiquetas_init.to_numpy(dtype=np.int64)
+        y_fin[i, :longitud] = etiquetas_fin.to_numpy(dtype=np.int64)
+        y_cap[i, :longitud] = etiquetas_cap.to_numpy(dtype=np.int64)
+        mascara[i, :longitud] = True
+        longitudes[i] = longitud
+        instancia_ids.append(inst_id)
+
+    # Convierte a tensores de PyTorch
+    return {
+        "X": torch.from_numpy(X),
+        "y_init": torch.from_numpy(y_init),
+        "y_fin": torch.from_numpy(y_fin),
+        "y_cap": torch.from_numpy(y_cap),
+        "mascara": torch.from_numpy(mascara),
+        "longitudes": torch.from_numpy(longitudes),
+        "instancia_ids": instancia_ids,
+    }
