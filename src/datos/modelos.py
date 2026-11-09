@@ -2,6 +2,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy as np
 
 
 #comentario para ignronates como yo(gianis)
@@ -106,6 +107,7 @@ class LSTMMultitarea(nn.Module):
         return logits_init, logits_fin, logits_cap
 
 # F de perdida
+
 def calcular_perdida_multitarea(logits_init, logits_fin, logits_cap,
                                y_init, y_fin, y_cap):
     """
