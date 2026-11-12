@@ -19,7 +19,7 @@ class GRUMultitarea(nn.Module):
     GRU unidireccional multitarea: a partir de embeddings de BERT por sub-token,
     predice punt_inicial, punt_final y capitalización para cada posición de la secuencia.
     """
-    def __init__(self, input_size=768, hidden_size=128, dropout=0.2):
+    def __init__(self, input_size=768, hidden_size=128, dropout=0.2, bidir = False):
         
         super().__init__()
 
@@ -32,18 +32,20 @@ class GRUMultitarea(nn.Module):
             hidden_size=hidden_size,
             num_layers=1,
             batch_first=True,
-            bidirectional=False
+            bidirectional=bidir
         )
 
         # Dropout sobre la salida de la GRU, antes de los heads, para regularizar.
         self.dropout = nn.Dropout(dropout)
 
+        dim_salida_rnn = hidden_size * (2 if bidir else 1)  # si es bidireccional, el tamaño de salida es el doble del hidden_size
+
         # Una capa de salida por tarea
         # El número de salidas de cada head es la cantidad de clases de esa tarea:
         # punt_inicial tiene 2 clases, punt_final y capitalización tienen 4 cada una.
-        self.head_init = nn.Linear(hidden_size, 2)
-        self.head_fin = nn.Linear(hidden_size, 4)
-        self.head_cap = nn.Linear(hidden_size, 4)
+        self.head_init = nn.Linear(dim_salida_rnn, 2)
+        self.head_fin = nn.Linear(dim_salida_rnn, 4)
+        self.head_cap = nn.Linear(dim_salida_rnn, 4)
 
     def forward(self, x):
         # h_n es el último estado oculto (resumen de toda la secuencia). Al ser
@@ -65,7 +67,7 @@ class LSTMMultitarea(nn.Module):
     LSTM unidireccional multitarea: a partir de embeddings de BERT por sub-token,
     predice punt_inicial, punt_final y capitalización para cada posición de la secuencia.
     """
-    def __init__(self, input_size=768, hidden_size=128, dropout=0.2):
+    def __init__(self, input_size=768, hidden_size=128, dropout=0.2, bidir = False):
 
         super().__init__()
 
@@ -78,18 +80,19 @@ class LSTMMultitarea(nn.Module):
             hidden_size=hidden_size,
             num_layers=1,
             batch_first=True,
-            bidirectional=False
+            bidirectional=bidir
         )
 
         # Dropout sobre la salida de la LSTM, antes de los heads, para regularizar.
         self.dropout = nn.Dropout(dropout)
 
+        dim_salida_rnn = hidden_size * (2 if bidir else 1)  # si es bidireccional, el tamaño de salida es el doble del hidden_size
         # Una capa de salida por tarea
         # El número de salidas de cada head es la cantidad de clases de esa tarea:
         # punt_inicial tiene 2 clases, punt_final y capitalización tienen 4 cada una.
-        self.head_init = nn.Linear(hidden_size, 2)
-        self.head_fin = nn.Linear(hidden_size, 4)
-        self.head_cap = nn.Linear(hidden_size, 4)
+        self.head_init = nn.Linear(dim_salida_rnn, 2)
+        self.head_fin = nn.Linear(dim_salida_rnn, 4)
+        self.head_cap = nn.Linear(dim_salida_rnn, 4)
 
     def forward(self, x):
         # La LSTM devuelve (h_n, c_n) en vez de un solo h_n: h_n es el último estado oculto
