@@ -167,7 +167,7 @@ def procesar_parrafo_a_chunks(texto_crudo, tokenizer, embedding_fn, chunk_size=3
                     vec = vec.detach().cpu().numpy()
                 elif vec is None:
                     # En caso de token fuera de vocabulario, padding con ceros de dim 768
-                    vec = np.zeros(768)
+                    vec = np.zeros(768, dtype=np.float32) #cambie aca porque antes daba float64 y error, ni idea
 
                 grupo.append({
                     'token_id': st_id,
