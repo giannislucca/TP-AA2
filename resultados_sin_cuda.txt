@@ -1,0 +1,46 @@
+Resultados con n grande de datos, sin CUDA (todo corriendo en CPU)
+
+modelo: RF embeddings (window_size=0)
+tiempo:
+resultados train:
+resultados test:
+
+modelo: RF embeddings (window_size=1)
+tiempo:
+resultados train:
+resultados test:
+
+modelo: RF embeddings (window_size=2)
+tiempo:
+resultados train:
+resultados test:
+
+modelo: RF features manuales
+tiempo:
+resultados train:
+resultados test:
+
+modelo: RF independientes por tarea
+tiempo:
+resultados train:
+resultados test:
+
+modelo: GRU
+tiempo:
+resultados train:
+resultados test:
+
+modelo: LSTM
+tiempo:
+resultados train:
+resultados test:
+
+modelo: GRU bidireccional
+tiempo:
+resultados train:
+resultados test:
+
+modelo: LSTM bidireccional
+tiempo:
+resultados train:
+resultados test:
