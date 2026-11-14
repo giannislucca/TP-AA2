@@ -1,5 +1,19 @@
 from datasets import load_dataset
 import re
+from langdetect import detect, DetectorFactory, LangDetectException
+
+#Esto es supuestamente para que la detección de idioma sea determinista.
+DetectorFactory.seed = 101
+
+
+def es_espanol(texto: str) -> bool:
+    """
+    Detecta si un texto está en español. Devuelve True si lo está, False si no.
+    """
+    try:
+        return detect(texto) == "es"
+    except LangDetectException:
+        return False
 
 
 def extraer_preguntas(texto, min_palabras=4):
@@ -20,7 +34,7 @@ def extraer_preguntas(texto, min_palabras=4):
     return encontradas
 
 
-def _acumular_estandar_y_preguntas(items, extraer_texto, n_estandar, n_preguntas,min_len=0, min_palabras_pregunta=4, incluir_origen=False, prefijo_origen="fuente"):
+def _acumular_estandar_y_preguntas(items, extraer_texto, n_estandar, n_preguntas,min_len=0, min_palabras_pregunta=4, incluir_origen=False, prefijo_origen="fuente", filtrar_espanol = True):
     """
     Arma dos listas de texto a partir de un dataset en streaming, sin saber
     nada de su esquema (Wikipedia, OpenSubtitles, o lo que venga después):
@@ -61,13 +75,15 @@ def _acumular_estandar_y_preguntas(items, extraer_texto, n_estandar, n_preguntas
             return fragmento
 
         if len(textos_estandar) < n_estandar and len(texto) > min_len:
-            textos_estandar.append(empaquetar(texto))
+            if not filtrar_espanol or es_espanol(texto):
+                textos_estandar.append(empaquetar(texto))
 
         elif len(textos_preguntas) < n_preguntas:
             for pregunta in extraer_preguntas(
                 texto, min_palabras=min_palabras_pregunta
             ):
-                textos_preguntas.append(empaquetar(pregunta))
+                if not filtrar_espanol or es_espanol(pregunta):
+                    textos_preguntas.append(empaquetar(pregunta))
 
                 if len(textos_preguntas) >= n_preguntas:
                     break

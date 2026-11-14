@@ -1,1 +1,11 @@
 RNN.ipynb
+
+
+# ==========================================
+# Datasets procesados y Modelos entrenados
+# ==========================================
+*.parquet
+*.pt
+*.pth
+data/*.parquet
+checkpoints/

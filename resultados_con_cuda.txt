@@ -1,0 +1,54 @@
+Resultados con n grande de datos, con CUDA (todo corriendo en GPU)
+(dataset: 300 wiki + 400 opensubtitles, n_preguntas=1200 c/u -> 256638 tokens, 10123 chunks)
+(train/val para RF: 113995 / 41169 palabras)
+
+modelo: RF embeddings (window_size=0)
+tiempo: 
+resultados train: no calculado 
+resultados test (F1 macro): 
+
+modelo: RF embeddings (window_size=1)
+tiempo: 
+resultados train: 
+resultados test (F1 macro): 
+
+modelo: RF embeddings (window_size=2)
+tiempo: 
+resultados train: 
+resultados test (F1 macro): 
+
+modelo: RF features manuales
+tiempo: 
+resultados train: 
+resultados test (F1 macro): 
+
+modelo: RF independientes por tarea
+tiempo: 
+resultados train: 
+resultados test (F1 macro): 
+
+modelo: GRU
+tiempo: 27.2s
+resultados train (loss ultima epoca): 0.1975
+resultados val/test: loss 0.2535 | F1 macro por palabra -> inicial 0.7814 | final 0.2860 | capitalizacion 0.5463
+
+modelo: LSTM
+tiempo: 27.4s
+resultados train (loss ultima epoca): 0.2023
+resultados val/test: loss 0.2407 | F1 macro por palabra -> inicial 0.7666 | final 0.2656 | capitalizacion 0.5232
+
+modelo: GRU bidireccional
+tiempo: 27.7s
+resultados train (loss ultima epoca): 0.1483
+resultados val/test: loss 0.2078 | F1 macro por palabra -> inicial 0.8420 | final 0.5071 | capitalizacion 0.6097
+
+modelo: LSTM bidireccional
+tiempo: 33.4s
+resultados train (loss ultima epoca): 0.1439
+resultados val/test: loss 0.2100 | F1 macro por palabra -> inicial 0.8335 | final 0.5117 | capitalizacion 0.6099
+
+
+modelo: GRU bidireccional ponderado
+tiempo: 26.7s
+resultados train (loss ultima epoca): 0.2345
+resultados val/test: loss 0.3396 | F1 macro por palabra -> inicial 0.820503 | final 0.527206 | capitalizacion 0.684609
