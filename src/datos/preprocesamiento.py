@@ -358,7 +358,7 @@ def generar_matriz_features_rf(df_palabras, window_size=2, columna_features='emb
     """
     X, y_init, y_fin, y_cap = [], [], [], []
     dim_emb = len(df_palabras.iloc[0][columna_features])#Aca se cambio a columna de features generica
-    padding_vec = np.zeros(dim_emb)  # Vector de ceros para los bordes del chunk
+    padding_vec = np.zeros(dim_emb, dtype=np.float32)  # Vector de ceros para los bordes del chunk
 
     # Iterar por cada chunk (instancia_id) por separado para no cruzar palabras de distintas oraciones
     for _, chunk in df_palabras.groupby('instancia_id'):
@@ -395,7 +395,7 @@ def generar_matriz_features_rf(df_palabras, window_size=2, columna_features='emb
             y_fin.append(p_fin_chunk[i])
             y_cap.append(cap_chunk[i])
 
-    return np.array(X), np.array(y_init), np.array(y_fin), np.array(y_cap)
+    return np.array(X, dtype=np.float32), np.array(y_init), np.array(y_fin), np.array(y_cap)
 
 
 def preparar_secuencias_rnn(df):
