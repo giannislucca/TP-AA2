@@ -99,7 +99,7 @@ def _acumular_estandar_y_preguntas(items, extraer_texto, n_estandar, n_preguntas
 
 
 
-def cargar_textos_wikipedia(n_estandar=100, n_preguntas=300, min_len=100, aleatorio=False, seed=101, version="20231101.es", incluir_origen = False):
+def cargar_textos_wikipedia(n_estandar=100, n_preguntas=300, min_len=100, aleatorio=False, seed=101, version="20231101.es", incluir_origen = False, filtrar_espanol=True):
     """
     Descarga textos de Wikipedia en español en streaming.
     Devuelve:
@@ -114,13 +114,13 @@ def cargar_textos_wikipedia(n_estandar=100, n_preguntas=300, min_len=100, aleato
         dataset = dataset.shuffle(seed=seed, buffer_size=10_000)
 
     textos_estandar, textos_preguntas = _acumular_estandar_y_preguntas(
-        dataset, lambda item: item['text'].strip(), n_estandar, n_preguntas, min_len=min_len, incluir_origen=incluir_origen, prefijo_origen="wikipedia")
+        dataset, lambda item: item['text'].strip(), n_estandar, n_preguntas, min_len=min_len, incluir_origen=incluir_origen, prefijo_origen="wikipedia", filtrar_espanol=filtrar_espanol)
     
     print(f"✅ Descarga finalizada: {len(textos_estandar)} textos estándar y {len(textos_preguntas)} oraciones de preguntas obtenidas.")
     return textos_estandar, textos_preguntas
 
 
-def cargar_opensubtitles(n_estandar=0, n_preguntas=300, min_len=20, min_palabras_pregunta=4, seed=101, idioma="es", incluir_origen =False):
+def cargar_opensubtitles(n_estandar=0, n_preguntas=300, min_len=20, min_palabras_pregunta=4, seed=101, idioma="es", incluir_origen =False, filtrar_espanol=True):
     """
     Descarga líneas de diálogo en español del corpus de subtítulos
     homersimpson/opensubtitles_es (alineado es-ca, en Parquet; no ejecuta
@@ -141,7 +141,7 @@ def cargar_opensubtitles(n_estandar=0, n_preguntas=300, min_len=20, min_palabras
     textos_estandar, textos_preguntas = _acumular_estandar_y_preguntas(
         dataset, lambda item: item['translation'][idioma].strip(), n_estandar, n_preguntas,
         min_len=min_len, min_palabras_pregunta=min_palabras_pregunta, incluir_origen=incluir_origen,
-    prefijo_origen="opensubtitles"
+    prefijo_origen="opensubtitles", filtrar_espanol=filtrar_espanol
     )
     print(f"✅ Descarga finalizada: {len(textos_estandar)} líneas estándar y {len(textos_preguntas)} líneas con pregunta obtenidas.")
     return textos_estandar, textos_preguntas
