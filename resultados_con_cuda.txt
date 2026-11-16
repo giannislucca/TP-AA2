@@ -52,3 +52,236 @@ modelo: GRU bidireccional ponderado
 tiempo: 26.7s
 resultados train (loss ultima epoca): 0.2345
 resultados val/test: loss 0.3396 | F1 macro por palabra -> inicial 0.820503 | final 0.527206 | capitalizacion 0.684609
+
+
+
+Resultados con n = 6200 textos, GPU NVIDIA T4 (CUDA para RNN)
+
+DATASET
+Wikipedia: 600 textos estándar + 2400 preguntas
+OpenSubtitles: 800 textos estándar + 2400 preguntas
+Total: 6200 textos
+
+Sub-tokens: 513324
+Chunks: 20102
+Orígenes distintos: 5463
+Palabras evaluadas en validación: 54903
+
+Los resultados de F1 macro corresponden al conjunto de validación,
+evaluado a nivel palabra.
+
+========================================
+RANDOM FOREST (no ejecutados en esta corrida)
+========================================
+
+modelo: RF embeddings (window_size=0)
+tiempo:
+resultados train:
+resultados val (F1 macro):
+
+modelo: RF embeddings (window_size=1)
+tiempo:
+resultados train:
+resultados val (F1 macro):
+
+modelo: RF embeddings (window_size=2)
+tiempo:
+resultados train:
+resultados val (F1 macro):
+
+modelo: RF features manuales (window_size=2)
+tiempo:
+resultados train:
+resultados val (F1 macro):
+
+modelo: RF independientes (features manuales, window_size=2)
+tiempo:
+resultados train:
+resultados val (F1 macro):
+
+========================================
+REDES NEURONALES RECURRENTES
+========================================
+
+modelo: GRU
+tiempo: 44.08s
+épocas entrenadas: 12
+mejor época: 9
+resultados train (loss última época): 0.1747
+resultados val (mejor loss): 0.2207
+F1 macro: inicial 0.7943 | final 0.3157 | capitalización 0.5735
+F1 macro promedio: 0.5612
+
+modelo: LSTM
+tiempo: 46.29s
+épocas entrenadas: 12
+mejor época: 9
+resultados train (loss última época): 0.1844
+resultados val (mejor loss): 0.2216
+F1 macro: inicial 0.7954 | final 0.2899 | capitalización 0.5548
+F1 macro promedio: 0.5467
+
+modelo: GRU bidireccional
+tiempo: 40.49s
+épocas entrenadas: 9
+mejor época: 6
+resultados train (loss última época): 0.1286
+resultados val (mejor loss): 0.1759
+F1 macro: inicial 0.8617 | final 0.5247 | capitalización 0.7016
+F1 macro promedio: 0.6960
+
+modelo: LSTM bidireccional
+tiempo: 54.04s
+épocas entrenadas: 12
+mejor época: 9
+resultados train (loss última época): 0.1162
+resultados val (mejor loss): 0.1775
+F1 macro: inicial 0.8559 | final 0.5488 | capitalización 0.7087
+F1 macro promedio: 0.7045
+
+modelo: GRU bidireccional ponderada (1 capa)
+tiempo: 40.30s
+épocas entrenadas: 9
+mejor época: 6
+resultados train (loss última época): 0.2071
+resultados val (mejor loss): 0.2993
+F1 macro: inicial 0.8400 | final 0.5726 | capitalización 0.7100
+F1 macro promedio: 0.7075
+
+========================================
+EXPERIMENTO ADICIONAL: PROFUNDIDAD
+========================================
+
+modelo: GRU bidireccional ponderada (2 capas)
+Configuración: 2 capas recurrentes, hidden_size=128,
+dropout=0.2, mismos pesos de clases y datos de entrenamiento.
+tiempo: 39.31s
+mejor época: 4
+resultados train (loss última época): no registrado
+resultados val (mejor loss): no registrado
+F1 macro: inicial 0.8290 | final 0.5751 | capitalización 0.7216
+F1 macro promedio: 0.7086
+
+Comparación con BiGRU ponderada de 1 capa:
+- Inicial: 0.8400 -> 0.8290
+- Final: 0.5726 -> 0.5751
+- Capitalización: 0.7100 -> 0.7216
+- Promedio: 0.7075 -> 0.7086
+
+Conclusión:
+Al agregar una segunda capa recurrente, mejoró ligeramente
+el F1 macro promedio, principalmente por capitalización.
+Sin embargo, la diferencia fue muy pequeña y puntuación
+inicial empeoró. Por ahora, no hay una mejora importante
+que justifique necesariamente utilizar una arquitectura
+más compleja.
+
+
+
+
+
+
+========================================
+CORRIDA 3 - N = 9300 TEXTOS - GPU T4
+========================================
+
+DATASET
+Textos solicitados: 9300
+Sub-tokens: 812319
+Chunks: 31480
+Orígenes: 8167
+Palabras evaluadas en validación: 97682
+
+========================================
+RESULTADOS RNN
+========================================
+
+modelo: GRU
+tiempo: 56.84s
+épocas entrenadas: 10
+mejor época: 7
+loss train última época: 0.1785
+mejor loss val: 0.2188
+F1 inicial: 0.7844
+F1 final: 0.3220
+F1 capitalización: 0.6277
+F1 promedio: 0.5780
+
+modelo: LSTM
+tiempo: 83.13s
+épocas entrenadas: 14
+mejor época: 11
+loss train última época: 0.1711
+mejor loss val: 0.2160
+F1 inicial: 0.7896
+F1 final: 0.3263
+F1 capitalización: 0.6095
+F1 promedio: 0.5751
+
+modelo: BiGRU
+tiempo: 68.46s
+épocas entrenadas: 10
+mejor época: 7
+loss train última época: 0.1166
+mejor loss val: 0.1721
+F1 inicial: 0.8669
+F1 final: 0.5560
+F1 capitalización: 0.7626
+F1 promedio: 0.7285
+
+modelo: BiLSTM
+tiempo: 70.72s
+épocas entrenadas: 10
+mejor época: 7
+loss train última época: 0.1210
+mejor loss val: 0.1722
+F1 inicial: 0.8597
+F1 final: 0.5606
+F1 capitalización: 0.7559
+F1 promedio: 0.7254
+
+modelo: BiGRU ponderada (1 capa)
+tiempo: 59.46s
+épocas entrenadas: 9
+mejor época: 6
+loss train última época: 0.1996
+mejor loss val: 0.2845
+F1 inicial: 0.8460
+F1 final: 0.5927
+F1 capitalización: 0.7390
+F1 promedio: 0.7259
+
+modelo: BiGRU ponderada (2 capas)
+tiempo: 70.45s
+épocas entrenadas: 8
+mejor época: 5
+loss train última época: 0.1617
+mejor loss val: 0.2673
+F1 inicial: 0.8486
+F1 final: 0.5990
+F1 capitalización: 0.7450
+F1 promedio: 0.7309
+
+========================================
+CONCLUSION
+========================================
+
+Al aumentar la cantidad de textos de 6200 a 9300,
+mejoró el F1 macro promedio de los seis modelos.
+
+La BiGRU ponderada con 2 capas obtuvo el mejor
+promedio (0.7309), aunque la diferencia respecto
+de la BiGRU sin ponderar (0.7285) fue pequeña.
+
+La BiGRU sin ponderar obtuvo el mejor F1 para
+puntuación inicial y capitalización, mientras
+que la ponderada de 2 capas obtuvo el mejor
+resultado de puntuación final.
+
+Los tiempos de entrenamiento aumentaron debido
+al mayor volumen de datos y a diferencias en
+las épocas ejecutadas por early stopping.
+
+La comparación entre tamaños de dataset es
+orientativa, dado que también cambió el conjunto
+de validación.

@@ -46,3 +46,63 @@ modelo: LSTM bidireccional
 tiempo: 255.18s
 resultados train (loss ultima epoca): 0.1143
 resultados val/test: loss 0.2159 | F1 macro por palabra -> inicial 0.8437 | final 0.5545 | capitalizacion 0.5824
+
+
+
+
+
+16/11 17:15
+Resultados con n grande de datos, sin CUDA (todo corriendo en CPU)
+(dataset: 600 wiki + 800 opensubtitles, n_preguntas=2400 c/u -> 513324 tokens, 20102 chunks)
+(train/val para RF: 242965 / 54903 palabras)
+(RF: 100 arboles, n_jobs=-1 | redes: hasta 15 epocas, early stopping con paciencia 3)
+
+modelo: RF embeddings (window_size=0)
+tiempo: 763.84s
+resultados train: no calculado (no se evalua sobre train)
+resultados test (F1 macro): inicial 0.5226 | final 0.3360 | capitalizacion 0.4791
+
+modelo: RF embeddings (window_size=1)
+tiempo: 2216.91s
+resultados train: no calculado (no se evalua sobre train)
+resultados test (F1 macro): inicial 0.7930 | final 0.3399 | capitalizacion 0.5392
+
+modelo: RF embeddings (window_size=2)
+tiempo: 3301.27s
+resultados train: no calculado (no se evalua sobre train)
+resultados test (F1 macro): inicial 0.7661 | final 0.3148 | capitalizacion 0.4829
+
+modelo: RF features manuales
+tiempo: 110.11s
+resultados train: no calculado (no se evalua sobre train)
+resultados test (F1 macro): inicial 0.7921 | final 0.3570 | capitalizacion 0.4645
+
+modelo: RF independientes por tarea
+tiempo: 158.23s (41.15s inicial + 60.49s final + 56.59s capitalizacion)
+resultados train: no calculado (no se evalua sobre train)
+resultados test (F1 macro): inicial 0.7935 | final 0.3692 | capitalizacion 0.5169
+
+modelo: GRU
+tiempo: 273.32s
+resultados train (loss en la mejor epoca, 7 de 10): 0.1982
+resultados val/test: loss 0.2224 | F1 macro por palabra -> inicial 0.7979 | final 0.3064 | capitalizacion 0.5785
+
+modelo: LSTM
+tiempo: 472.69s
+resultados train (loss en la mejor epoca, 13 de 15): 0.1804
+resultados val/test: loss 0.2206 | F1 macro por palabra -> inicial 0.7894 | final 0.3095 | capitalizacion 0.5766
+
+modelo: GRU bidireccional
+tiempo: 458.24s
+resultados train (loss en la mejor epoca, 6 de 9): 0.1504
+resultados val/test: loss 0.1769 | F1 macro por palabra -> inicial 0.8563 | final 0.5234 | capitalizacion 0.6715
+
+modelo: LSTM bidireccional
+tiempo: 773.72s
+resultados train (loss en la mejor epoca, 10 de 13): 0.1297
+resultados val/test: loss 0.1768 | F1 macro por palabra -> inicial 0.8648 | final 0.5518 | capitalizacion 0.6901
+
+modelo: GRU bidireccional ponderado
+tiempo: 456.28s
+resultados train (loss en la mejor epoca, 6 de 9): 0.2452
+resultados val/test: loss 0.3003 | F1 macro por palabra -> inicial 0.8344 | final 0.5759 | capitalizacion 0.7003
