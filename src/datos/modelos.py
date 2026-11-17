@@ -143,6 +143,95 @@ class LSTMMultitarea(nn.Module):
 
         return logits_init, logits_fin, logits_cap
 
+class BiGRU3RedesIndependientes(nn.Module):
+    """
+    Tres redes BiGRU completamente independientes (una por tarea):
+      - Red 1: Puntuación inicial (2 clases: sin signo, ¿)
+      - Red 2: Puntuación final (4 clases: sin signo, ',', '.', '?')
+      - Red 3: Capitalización (4 clases: minúscula, inicial, mixta, mayúsculas)
+    Mantiene la misma interfaz de salida (logits_ini, logits_fin, logits_cap)
+    que GRUMultitarea para reutilizar entrenar_modelo_rnn y evaluar_f1_rnn_por_palabra.
+    """
+    def __init__(self, input_size=768, hidden_size=128, dropout=0.2,
+                 num_clases_ini=2, num_clases_fin=4, num_clases_cap=4):
+        super().__init__()
+        dim_salida_gru = hidden_size * 2  # *2 por ser bidireccional
+
+        # --- Rama 1: Puntuación Inicial ---
+        self.gru_ini = nn.GRU(input_size, hidden_size, batch_first=True, bidirectional=True)
+        self.drop_ini = nn.Dropout(dropout)
+        self.fc_ini = nn.Linear(dim_salida_gru, num_clases_ini)
+
+        # --- Rama 2: Puntuación Final ---
+        self.gru_fin = nn.GRU(input_size, hidden_size, batch_first=True, bidirectional=True)
+        self.drop_fin = nn.Dropout(dropout)
+        self.fc_fin = nn.Linear(dim_salida_gru, num_clases_fin)
+
+        # --- Rama 3: Capitalización ---
+        self.gru_cap = nn.GRU(input_size, hidden_size, batch_first=True, bidirectional=True)
+        self.drop_cap = nn.Dropout(dropout)
+        self.fc_cap = nn.Linear(dim_salida_gru, num_clases_cap)
+
+    def forward(self, x, longitudes=None):
+        # Cada BiGRU procesa la secuencia de entrada de forma totalmente aislada
+        out_ini, _ = self.gru_ini(x)
+        logits_ini = self.fc_ini(self.drop_ini(out_ini))
+
+        out_fin, _ = self.gru_fin(x)
+        logits_fin = self.fc_fin(self.drop_fin(out_fin))
+
+        out_cap, _ = self.gru_cap(x)
+        logits_cap = self.fc_cap(self.drop_cap(out_cap))
+
+        return logits_ini, logits_fin, logits_cap
+
+
+class BiGRUProyectadaResidual(nn.Module):
+    """
+    BiGRU multi-tarea con:
+      1. Proyección de entrada (768 -> 2*hidden_size) + LayerNorm + GELU
+      2. BiGRU bidireccional
+      3. Conexión residual (identidad léxica + contexto secuencial) + LayerNorm
+    Mantiene la interfaz (logits_ini, logits_fin, logits_cap).
+    """
+    def __init__(self, input_size=768, hidden_size=128, dropout=0.25,
+                 num_clases_ini=2, num_clases_fin=4, num_clases_cap=4):
+        super().__init__()
+        dim_modelo = hidden_size * 2  # 256 si hidden_size=128
+
+        # 1. Proyección y normalización de los embeddings estáticos de BERT
+        self.proyeccion = nn.Sequential(
+            nn.Linear(input_size, dim_modelo),
+            nn.LayerNorm(dim_modelo),
+            nn.GELU(),
+            nn.Dropout(dropout)
+        )
+
+        # 2. Backbone recurrente bidireccional
+        self.gru = nn.GRU(
+            input_size=dim_modelo,
+            hidden_size=hidden_size,
+            batch_first=True,
+            bidirectional=True
+        )
+
+        # 3. Normalización post-residual y dropout antes de las cabezas
+        self.norm_salida = nn.LayerNorm(dim_modelo)
+        self.dropout = nn.Dropout(dropout)
+
+        # 4. Tres cabezas multi-tarea
+        self.fc_ini = nn.Linear(dim_modelo, num_clases_ini)
+        self.fc_fin = nn.Linear(dim_modelo, num_clases_fin)
+        self.fc_cap = nn.Linear(dim_modelo, num_clases_cap)
+
+    def forward(self, x, longitudes=None):
+        h_proj = self.proyeccion(x)             # (B, T, 256)
+        h_gru, _ = self.gru(h_proj)             # (B, T, 256)
+        h = self.norm_salida(h_proj + h_gru)    # Conexión residual + LayerNorm
+        h = self.dropout(h)
+
+        return self.fc_ini(h), self.fc_fin(h), self.fc_cap(h)
+
 
 # AMBAS DE ABAJO FUERON RETOCADAS/CREADAS PARA EL PONDERADO
 # F de perdida
