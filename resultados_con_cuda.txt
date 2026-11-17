@@ -1,6 +1,7 @@
 Resultados con n grande de datos, con CUDA (todo corriendo en GPU)
 (dataset: 300 wiki + 400 opensubtitles, n_preguntas=1200 c/u -> 256638 tokens, 10123 chunks)
 (train/val para RF: 113995 / 41169 palabras)
+[Configuración de las redes no registrada en esta corrida.]
 
 modelo: RF embeddings (window_size=0)
 tiempo: 
@@ -69,6 +70,8 @@ Palabras evaluadas en validación: 54903
 
 Los resultados de F1 macro corresponden al conjunto de validación,
 evaluado a nivel palabra.
+
+Configuración no registrada (ver épocas/mejor época por modelo; CPU del mismo dataset en resultados_sin_cuda.txt).
 
 ========================================
 RANDOM FOREST (no ejecutados en esta corrida)
@@ -191,6 +194,13 @@ Sub-tokens: 812319
 Chunks: 31480
 Orígenes: 8167
 Palabras evaluadas en validación: 97682
+
+CONFIGURACIÓN (según la notebook de esta corrida)
+Wikipedia 900 + 3600 preguntas | OpenSubtitles 1200 + 3600 | filtro de idioma activado | chunks de 32
+Split por origen_id: desarrollo/control 80/20 (seed 912), train/val 80/20 (seed 23). F1 sobre validación.
+Redes: hidden 128, dropout 0.2 sobre la salida (la de 2 capas sin dropout entre capas)
+Adam lr 1e-3, batch 32, hasta 15 épocas, early stopping paciencia 3 (loss de validación), seed 101
+Ponderadas: Weighted CE con pesos (max/freq)^0.5, tope 5.0, calculados sobre train
 
 ========================================
 RESULTADOS RNN
