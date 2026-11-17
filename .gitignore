@@ -7,5 +7,7 @@ RNN.ipynb
 *.parquet
 *.pt
 *.pth
+*.joblib
 data/*.parquet
 checkpoints/
+modelos/

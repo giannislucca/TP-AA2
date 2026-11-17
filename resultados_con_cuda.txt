@@ -296,7 +296,36 @@ La comparación entre tamaños de dataset es
 orientativa, dado que también cambió el conjunto
 de validación.
 
+========================================
+RANDOM FOREST - CORRIDA 3 (N=9300, runtime GPU T4)
+========================================
 
+RF entrena sobre el 60% de los orígenes de desarrollo (los mismos textos
+de la CORRIDA 3, 900 wiki + 1200 opensubtitles): 223362 palabras train,
+70565 palabras validación. Config: 100 árboles, n_jobs=-1.
+
+modelo: RF embeddings (window_size=0)
+tiempo: 460.47s
+resultados val (F1 macro): inicial 0.5095 | final 0.3443 | capitalización 0.4643
+
+modelo: RF embeddings (window_size=1)
+tiempo: 1385.32s
+resultados val (F1 macro): inicial 0.7650 | final 0.3314 | capitalización 0.5696
+
+modelo: RF embeddings (window_size=2)
+tiempo: 2296.57s
+resultados val (F1 macro): inicial 0.739 | final 0.302 | capitalización 0.492
+
+modelo: RF features manuales
+tiempo: 60.08s
+resultados val (F1 macro): inicial 0.754 | final 0.351 | capitalización 0.479
+
+modelo: RF independientes por tarea
+tiempo: 89.58s (22.13s inicial + 32.69s final + 34.76s capitalización)
+resultados val (F1 macro): inicial 0.7567 | final 0.3655 | capitalización 0.5295
+
+Gráfico de impacto de window_size:
+figuras/impacto_tamano_ventana_wiki900_subs1200_p3600.png
 
 
 ========================================
