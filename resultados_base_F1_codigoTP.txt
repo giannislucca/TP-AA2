@@ -1,0 +1,169 @@
+BASELINE DE COMPARACION - ULTIMA CORRIDA DE codigoTP.ipynb
+==========================================================
+
+Fuente: outputs guardados en codigoTP.ipynb
+Dispositivo: GPU Tesla T4 (CUDA)
+
+
+==========================================================
+DATASET: CANTIDADES EXACTAS
+==========================================================
+
+Wikipedia:
+  - Textos estandar: 900
+  - Preguntas: 3600
+  - Total Wikipedia: 4500
+
+OpenSubtitles:
+  - Textos estandar: 1200
+  - Preguntas: 3600
+  - Total OpenSubtitles: 4800
+
+Totales solicitados y obtenidos:
+  - Textos estandar: 2100
+  - Preguntas: 7200
+  - Textos totales: 9300
+  - Filtro de idioma: activado
+
+Tokenizacion y chunks:
+  - Tokenizer/embeddings: bert-base-multilingual-cased
+  - Dimension de embedding: 768
+  - Chunk size: 32 subtokens
+  - Subtokens totales: 812319
+  - Chunks totales: 31480
+  - Origenes distintos: 8167
+  - Tamano minimo de chunk: 1
+  - Tamano maximo de chunk: 32
+  - Chunks con mas de 32 subtokens: 0
+  - Chunks que comienzan con ##: 0
+
+Distribucion total de etiquetas:
+  Puntuacion inicial, por subtoken:
+    - Sin signo: 804649
+    - ¿: 7670
+
+  Puntuacion final, por subtoken:
+    - Sin signo: 742632
+    - Coma: 39510
+    - Punto: 22314
+    - ?: 7863
+
+  Capitalizacion, por palabra (597765 palabras totales):
+    - Clase 0: 465196
+    - Clase 1: 126395
+    - Clase 2: 1450
+    - Clase 3: 4724
+
+  - Chunks que contienen ?: 23.55%
+
+==========================================================
+SPLITS: CANTIDADES EXACTAS
+==========================================================
+
+Division por origen_id, sin compartir origenes entre conjuntos:
+  - Desarrollo: 6533 origenes
+  - Control: 1634 origenes
+  - Train: 5226 origenes
+  - Validacion: 1307 origenes
+
+Chunks usados por las RNN:
+  - Train: 19502
+  - Validacion: 5101
+  - Control: 6877
+  - Total: 31480
+
+Otros conteos:
+  - Subtokens reales de train: 498502
+  - Palabras evaluadas en validacion: 97682
+
+Seeds de los splits:
+  - Desarrollo/control 80/20: random_state=912
+  - Train/validacion 80/20: random_state=23
+
+Distribucion de clases en train usada para calcular los pesos:
+  Puntuacion inicial:
+    - Conteos: [493532, 4970]
+    - Pesos: [1.0, 5.0]
+
+  Puntuacion final:
+    - Conteos: [456399, 23777, 13256, 5070]
+    - Pesos: [1.0, 4.3812074661, 5.0, 5.0]
+
+  Capitalizacion:
+    - Conteos: [355558, 134718, 2430, 5796]
+    - Pesos: [1.0, 1.6245849133, 5.0, 5.0]
+
+==========================================================
+CONFIGURACION DE ENTRENAMIENTO
+==========================================================
+
+Configuracion general de las RNN:
+  - Hidden size: 128
+  - Dropout de salida: 0.2
+  - Optimizador: Adam
+  - Learning rate: 0.001
+  - Batch size: 32
+  - Maximo de epocas: 15
+  - Early stopping: paciencia 3, segun loss de validacion
+  - Seed de la corrida principal: 101
+
+Modelos ponderados:
+  - Weighted Cross-Entropy
+  - Pesos: (max/frecuencia)^0.5
+  - Peso maximo: 5.0
+
+Configuraciones particulares:
+  - BiGRU ponderada de 2 capas de la tabla principal: 2 capas recurrentes.
+  - BiGRU proyectada + residual: dropout 0.25.
+  - Experimento multisemilla de 2 capas: dropout entre capas 0.3.
+
+==========================================================
+RESULTADOS PRINCIPALES: CORRIDA CON SEED 101
+==========================================================
+
+Modelo                         Tiempo  Epocas  Mejor ep.  Loss train  Mejor loss val  F1 inicial  F1 final  F1 capital.  F1 promedio
+GRU                            60.34s      10          7      0.1790          0.2195      0.7881    0.3211       0.6246       0.5779
+LSTM                           81.86s      14         11      0.1711          0.2160      0.7896    0.3263       0.6095       0.5751
+BiGRU                          69.59s      10          7      0.1166          0.1721      0.8669    0.5560       0.7626       0.7285
+BiLSTM                         71.92s      10          7      0.1210          0.1722      0.8597    0.5606       0.7559       0.7254
+BiGRU ponderada                61.16s       9          6      0.1996          0.2845      0.8460    0.5927       0.7390       0.7259
+BiGRU ponderada (2 capas)      70.95s       8          5      0.1617          0.2673      0.8486    0.5990       0.7450       0.7309
+BiGRU 3 redes independientes   43.44s       7          4      0.1994          0.2876      0.8460    0.5927       0.7372       0.7253
+BiGRU proyectada + residual    31.77s       7          4      0.2072          0.2729      0.8439    0.6103       0.7564       0.7369
+
+Mejores resultados individuales de la tabla principal:
+  - F1 inicial: 0.8669 - BiGRU
+  - F1 final: 0.6103 - BiGRU proyectada + residual
+  - F1 capitalizacion: 0.7626 - BiGRU
+  - F1 promedio: 0.7369 - BiGRU proyectada + residual
+
+==========================================================
+EXPERIMENTO MULTISEMILLA
+==========================================================
+
+Semillas exactas: [101, 102, 103]
+Cantidad de corridas por configuracion: 3
+Cantidad total de entrenamientos: 6
+
+BiGRU ponderada, 1 capa:
+  - F1 inicial: 0.8492 +/- 0.0073
+  - F1 final: 0.5927 +/- 0.0033
+  - F1 capitalizacion: 0.7430 +/- 0.0082
+  - F1 promedio: 0.7283 +/- 0.0013
+  - Mejor epoca media: 6.3
+  - Tiempo medio: 64.0s
+
+BiGRU ponderada, 2 capas + dropout entre capas:
+  - F1 inicial: 0.8530 +/- 0.0064
+  - F1 final: 0.6006 +/- 0.0056
+  - F1 capitalizacion: 0.7430 +/- 0.0051
+  - F1 promedio: 0.7322 +/- 0.0042
+  - Mejor epoca media: 5.0
+  - Tiempo medio: 70.6s
+
+Comparacion pareada, 2 capas menos 1 capa:
+  - Diferencia de F1 promedio: +0.0039 +/- 0.0054
+  - La configuracion de 2 capas gano en 2 de 3 semillas
+
+Esta corrida queda fijada como baseline. La corrida con CHUNK_SIZE=96 debe
+compararse contra estos valores usando F1 macro por palabra sobre validacion.

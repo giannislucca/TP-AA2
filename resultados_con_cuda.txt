@@ -295,3 +295,184 @@ las épocas ejecutadas por early stopping.
 La comparación entre tamaños de dataset es
 orientativa, dado que también cambió el conjunto
 de validación.
+
+
+
+
+========================================
+CORRIDA 4 - N = 9300 TEXTOS - CHUNK_SIZE = 96 - GPU T4
+========================================
+
+Esta corrida usa exactamente los mismos textos, orígenes, splits,
+seeds y modelos que la corrida 3. La única variable experimental
+es el tamaño máximo de cada chunk: 32 -> 96 subtokens.
+
+DATASET
+Wikipedia: 900 textos estándar + 3600 preguntas
+OpenSubtitles: 1200 textos estándar + 3600 preguntas
+Total: 9300 textos
+Subtokens: 812319
+Chunks con tamaño 96: 15806
+Chunks de la corrida base con tamaño 32: 31480
+Reducción de cantidad de chunks: 15674
+Orígenes distintos: 8167
+Palabras evaluadas en validación: 97682
+
+SPLIT POR ORIGEN_ID
+Orígenes train: 5226
+Orígenes validación: 1307
+Orígenes control: 1634
+Chunks train: 9935
+Chunks validación: 2515
+Chunks control: 3356
+
+CONFIGURACIÓN
+bert-base-multilingual-cased, embeddings estáticos de dimensión 768
+Chunk size: 96 subtokens
+Hidden size: 128
+Dropout de salida: 0.2
+Adam, lr 1e-3, batch size 32
+Hasta 15 épocas, early stopping con paciencia 3 sobre loss de validación
+Seed principal: 101
+Ponderadas: Weighted CE con pesos (max/freq)^0.5, tope 5.0
+F1 macro evaluado por palabra sobre validación
+
+========================================
+RESULTADOS RNN - CHUNK_SIZE = 96
+========================================
+
+modelo: GRU
+tiempo: 63.81s
+épocas entrenadas: 13
+mejor época: 10
+loss train última época: 0.1766
+mejor loss val: 0.2250
+F1 inicial: 0.7882
+F1 final: 0.3271
+F1 capitalización: 0.6134
+F1 promedio: 0.5762
+
+modelo: LSTM
+tiempo: 75.57s
+épocas entrenadas: 15
+mejor época: 15
+loss train última época: 0.1787
+mejor loss val: 0.2228
+F1 inicial: 0.7990
+F1 final: 0.3279
+F1 capitalización: 0.6102
+F1 promedio: 0.5790
+
+modelo: BiGRU
+tiempo: 80.00s
+épocas entrenadas: 13
+mejor época: 10
+loss train última época: 0.1168
+mejor loss val: 0.1728
+F1 inicial: 0.8623
+F1 final: 0.5727
+F1 capitalización: 0.7388
+F1 promedio: 0.7246
+
+modelo: BiLSTM
+tiempo: 83.69s
+épocas entrenadas: 13
+mejor época: 10
+loss train última época: 0.1238
+mejor loss val: 0.1732
+F1 inicial: 0.8540
+F1 final: 0.5652
+F1 capitalización: 0.7069
+F1 promedio: 0.7087
+
+modelo: BiGRU ponderada (1 capa)
+tiempo: 97.01s
+épocas entrenadas: 13
+mejor época: 10
+loss train última época: 0.1854
+mejor loss val: 0.2853
+F1 inicial: 0.8527
+F1 final: 0.5958
+F1 capitalización: 0.7462
+F1 promedio: 0.7316
+
+modelo: BiGRU ponderada (2 capas)
+tiempo: 92.11s
+épocas entrenadas: 10
+mejor época: 7
+loss train última época: 0.1602
+mejor loss val: 0.2688
+F1 inicial: 0.8542
+F1 final: 0.6059
+F1 capitalización: 0.7398
+F1 promedio: 0.7333
+
+modelo: BiGRU 3 redes independientes
+tiempo: 55.22s
+épocas entrenadas: 9
+mejor época: 6
+loss train última época: 0.1934
+mejor loss val: 0.2852
+F1 inicial: 0.8479
+F1 final: 0.5899
+F1 capitalización: 0.7413
+F1 promedio: 0.7263
+
+modelo: BiGRU proyectada + residual
+tiempo: 28.57s
+épocas entrenadas: 8
+mejor época: 5
+loss train última época: 0.1990
+mejor loss val: 0.2715
+F1 inicial: 0.8515
+F1 final: 0.6255
+F1 capitalización: 0.7666
+F1 promedio: 0.7479
+
+========================================
+EXPERIMENTO MULTISEMILLA - CHUNK_SIZE = 96
+========================================
+
+Semillas: [101, 102, 103]
+Cantidad de corridas por configuración: 3
+
+BiGRU ponderada, 1 capa:
+F1 inicial: 0.8548 ± 0.0042
+F1 final: 0.6015 ± 0.0059
+F1 capitalización: 0.7461 ± 0.0100
+F1 promedio: 0.7342 ± 0.0058
+Mejor época media: 9.0
+Tiempo medio: 80.3s
+
+BiGRU ponderada, 2 capas + dropout entre capas:
+F1 inicial: 0.8472 ± 0.0142
+F1 final: 0.6075 ± 0.0040
+F1 capitalización: 0.7392 ± 0.0107
+F1 promedio: 0.7313 ± 0.0072
+Mejor época media: 6.3
+Tiempo medio: 87.4s
+
+Diferencia pareada de F1 promedio (2 capas - 1 capa):
+-0.0029 ± 0.0128; la configuración de 2 capas ganó en 1 de 3 semillas.
+
+========================================
+COMPARACIÓN CONTRA CHUNK_SIZE = 32
+========================================
+
+Modelo                         F1 chunk 32   F1 chunk 96   Diferencia
+GRU                                  0.5779         0.5762      -0.0017
+LSTM                                 0.5751         0.5790      +0.0039
+BiGRU                                0.7285         0.7246      -0.0039
+BiLSTM                               0.7254         0.7087      -0.0167
+BiGRU ponderada                      0.7259         0.7316      +0.0057
+BiGRU ponderada (2 capas)            0.7309         0.7333      +0.0024
+BiGRU 3 redes independientes         0.7253         0.7263      +0.0010
+BiGRU proyectada + residual          0.7369         0.7479      +0.0110
+
+CONCLUSIÓN
+El mejor resultado pasa de 0.7369 con chunks de 32 a 0.7479 con
+chunks de 96. La BiGRU proyectada + residual mejora en las tres tareas:
+inicial 0.8439 -> 0.8515, final 0.6103 -> 0.6255 y
+capitalización 0.7564 -> 0.7666.
+
+El aumento de contexto mejora 5 de los 8 modelos en F1 promedio.
