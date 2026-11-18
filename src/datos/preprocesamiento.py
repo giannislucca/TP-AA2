@@ -142,6 +142,7 @@ def procesar_parrafo_a_chunks(texto_crudo, tokenizer, embedding_fn, chunk_size=3
     palabras = texto.split()
 
     grupos_palabras = []
+    dicc_mixta = {}
 
     for palabra in palabras:
         p_init, partes, p_fin = seccionar_palabra(palabra)
@@ -151,6 +152,12 @@ def procesar_parrafo_a_chunks(texto_crudo, tokenizer, embedding_fn, chunk_size=3
             p_fin_parte = p_fin if k == len(partes) - 1 else ""
 
             cap_val = determinar_capitalizacion(parte)
+
+            if cap_val == 2:
+                clave = parte.lower()
+                if clave not in dicc_mixta:
+                    dicc_mixta[clave] = parte    
+
             sub_tokens = tokenizer.tokenize(parte.lower())
             if not sub_tokens:
                 continue
@@ -201,13 +208,14 @@ def procesar_parrafo_a_chunks(texto_crudo, tokenizer, embedding_fn, chunk_size=3
 
     columnas = ['instancia_id', 'token_id', 'token', 'embedding',
                 'punt_inicial', 'punt_final', 'capitalización']
-    return pd.DataFrame(filas, columns=columnas), instancia_id
+    return pd.DataFrame(filas, columns=columnas), instancia_id, dicc_mixta
 
 
 def construir_dataset(textos, tokenizer, embedding_fn, chunk_size=32,
                       exigir_origen=False):
 
     dataframes_chunks = []
+    dicc_mixta_por_origen = {}  # Guarda {origen_id: {palabra_lower: palabra_orig}}
     current_id = 1
 
     with torch.no_grad():
@@ -226,7 +234,7 @@ def construir_dataset(textos, tokenizer, embedding_fn, chunk_size=32,
                 origen_id = f"sin_origen:{indice_texto}"
 
             # Preprocesamiento original
-            df_chunk, current_id = procesar_parrafo_a_chunks(
+            df_chunk, current_id, dicc_parcial = procesar_parrafo_a_chunks(
                 texto,
                 tokenizer,
                 embedding_fn=embedding_fn,
@@ -234,12 +242,15 @@ def construir_dataset(textos, tokenizer, embedding_fn, chunk_size=32,
                 id_inicio=current_id
             )
 
+            if dicc_parcial:
+                dicc_mixta_por_origen.setdefault(origen_id, {}).update(dicc_parcial)
+
             if not df_chunk.empty:
                 df_chunk["origen_id"] = origen_id
                 df_chunk["texto_id"] = indice_texto
                 dataframes_chunks.append(df_chunk)
 
-    return pd.concat(dataframes_chunks, ignore_index=True)
+    return pd.concat(dataframes_chunks, ignore_index=True), dicc_mixta_por_origen
 
 
 def construir_embeddings_por_palabra(df):
