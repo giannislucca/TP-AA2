@@ -224,9 +224,9 @@ class BiGRUProyectadaResidual(nn.Module):
         self.fc_fin = nn.Linear(dim_modelo, num_clases_fin)
         self.fc_cap = nn.Linear(dim_modelo, num_clases_cap)
 
-    def forward(self, x, longitudes=None):
+    def forward(self, x, longitudes):
         h_proj = self.proyeccion(x)             # (B, T, 256)
-        h_gru, _ = self.gru(h_proj)             # (B, T, 256)
+        h_gru = ejecutar_recurrente(self.gru, h_proj, longitudes)
         h = self.norm_salida(h_proj + h_gru)    # Conexión residual + LayerNorm
         h = self.dropout(h)
 
